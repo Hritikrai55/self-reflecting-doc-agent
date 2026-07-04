@@ -1,163 +1,134 @@
-# Autonomous AI Agent
+# 🤖 Self-Reflecting Autonomous AI Document Agent
 
-A Python-based autonomous AI agent that accepts natural-language requests, creates its own execution plan, runs each step via tool-calling, self-evaluates the output, and produces polished Microsoft Word (`.docx`) documents.
+A production-ready Python API containing an **Autonomous AI Agent** that parses natural language requests, plans its own workflow, gathers context, drafts structured reports, self-evaluates document quality, and compiles polished Microsoft Word (`.docx`) files. 
 
-## Architecture
+Built from scratch using **FastAPI**, **Groq (Llama 3.3 70B)**, and **python-docx**.
+
+---
+
+## 🗺️ System Architecture & Workflow
 
 ```
-User Request  →  Planner  →  Executor  →  Reflector  →  DOCX Generator
-                   │            │             │
-                   ▼            ▼             ▼
-              Task List    Tool Calls    Quality Check
-              (LLM)       (LLM+Tools)   (LLM Review)
+                   ┌───────────────────────────────────────┐
+                   │          User Input Request           │
+                   └──────────────────┬────────────────────┘
+                                      │
+                                      ▼
+                   ┌───────────────────────────────────────┐
+                   │             Task Planner              │ ◀───┐
+                   │   Decomposes request into sub-tasks   │     │
+                   └──────────────────┬────────────────────┘     │
+                                      │                          │
+                                      ▼                          │
+                   ┌───────────────────────────────────────┐     │
+                   │           Executor Engine             │     │
+                   │   Iterates and dispatches to tools    │     │
+                   └──────────────────┬────────────────────┘     │
+                                      │                          │
+                                      ▼                          │
+                   ┌───────────────────────────────────────┐     │ (Quality score < 70)
+                   │        Self-Reflection Engine         │ ────┘
+                   │    Critiques & scores text (0-100)    │  Triggers auto-re-write
+                   └──────────────────┬────────────────────┘
+                                      │
+                                      ▼ (Passes Quality Gate)
+                   ┌───────────────────────────────────────┐
+                   │           DOCX Generator              │
+                   │      Applies professional styles      │
+                   └──────────────────┬────────────────────┘
+                                      │
+                                      ▼
+                   ┌───────────────────────────────────────┐
+                   │   FastAPI Response & File Download    │
+                   └───────────────────────────────────────┘
 ```
 
 ### Component Overview
 
-| Component      | File                           | Purpose                                                       |
-| -------------- | ------------------------------ | ------------------------------------------------------------- |
-| **API Layer**  | `app/main.py`                  | FastAPI app with `POST /agent` and `GET /download/{filename}` |
-| **Planner**    | `app/agent/planner.py`         | Decomposes requests into task lists using LLM                 |
-| **Executor**   | `app/agent/executor.py`        | Walks through tasks, calling tools sequentially               |
-| **Tools**      | `app/agent/tools.py`           | Research, outline, write, and review tools                    |
-| **Reflector**  | `app/agent/reflector.py`       | Self-check that evaluates and improves output                 |
-| **DOCX Gen**   | `app/docgen/word_generator.py` | Professional Word document creation                           |
-| **LLM Client** | `app/llm/gemini_client.py`     | Groq (Llama 3.3 70B) API wrapper with retry logic             |
-| **Models**     | `app/models/schemas.py`        | Pydantic request/response schemas                             |
+| Component | File Path | Responsibility |
+|:---|:---|:---|
+| **API Layer** | `app/main.py` | Exposes `POST /agent` and handles file serving. |
+| **Planner** | `app/agent/planner.py` | Parses user requests, resolves ambiguities (makes assumptions), and designs task paths. |
+| **Executor** | `app/agent/executor.py` | Loops through tasks sequentially, preserving memory across steps. |
+| **Reflector** | `app/agent/reflector.py` | Quality assurance check (criticizes and repairs weak sections). |
+| **Tools** | `app/agent/tools.py` | Specialized agents for research, outlines, writing, and proofreading. |
+| **Doc Generator**| `app/docgen/word_generator.py` | Assembles document styling, custom colors, page numbers, and tables. |
+| **LLM Client** | `app/llm/gemini_client.py` | Drop-in async wrapper with exponential backoff and rate-limit recovery. |
 
-## Setup
+---
 
-### 1. Install Dependencies
+## 🛠️ Mandatory Engineering Improvement: Multi-Step Planning + Reflection
 
+Instead of one-shot generation, this agent implements a **double-loop optimization system**:
+
+1. **Multi-Step Task Planning:** The agent maps out a custom execution plan depending on the request (research, outlining, custom sections writing, final review).
+2. **Self-Reflection (Quality Gate):** Once the document is drafted, a separate verification LLM acts as an editor. It reviews the work against the user's initial prompt and scores it from `0` to `100`.
+   - **Quality Score >= 70:** Document passes straight to compilation.
+   - **Quality Score < 70:** The Reflector flags specific weak sections and issues. The agent loops back to rewrite/patch those sections using the writer tools (capped at 1 retry to avoid infinite API consumption).
+
+*Why this matters:* This loop guarantees high-quality, coherent results even for extremely ambiguous inputs (which was proven during manual test validations).
+
+---
+
+## ⚡ Setup & Installation
+
+### 1. Clone & Set Up Directory
+Ensure you are in the project root folder.
+
+### 2. Configure Virtual Environment
+```bash
+# Create environment
+python -m venv venv
+
+# Activate on Windows (PowerShell)
+.\venv\Scripts\Activate.ps1
+
+# Activate on Mac/Linux
+source venv/bin/activate
+```
+
+### 3. Install Dependencies
 ```bash
 pip install -r requirements.txt
 ```
 
-### 2. Configure API Key
-
-Copy the example environment file and add your Groq API key:
-
-```bash
-cp .env.example .env
-# Edit .env and add your key:
-# GROQ_API_KEY=your_key_here
+### 4. Setup Environment Variables
+Create a `.env` file in the root directory:
+```env
+# Get a free API Key at https://console.groq.com
+GROQ_API_KEY=your_groq_api_key_here
+GROQ_MODEL=llama-3.3-70b-versatile
 ```
 
-Get a free API key at: https://console.groq.com
+---
 
-### 3. Run the Server
+## 🚀 Running & Verification
 
+### Start the Server
 ```bash
 uvicorn app.main:app --reload
 ```
+Once started, the API documentation is available at [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs).
 
-The API will be available at `http://127.0.0.1:8000`.
-
-### 4. Test the Agent
-
+### Run Test Inputs
+We have included a comprehensive test script that runs both the standard and complex test scenarios:
 ```bash
 python test_agent.py
 ```
 
-Or use curl:
+---
 
-```bash
-curl -X POST http://127.0.0.1:8000/agent \
-  -H "Content-Type: application/json" \
-  -d '{"request": "Create a project proposal for a mobile water tracking app"}'
-```
+## 📊 Test Cases Implemented
 
-## Engineering Improvement: Multi-Step Planning with Self-Reflection
+### 🔹 Test Case 1: Standard Business Request
+* **Query:** `"Create a project proposal for a mobile app that helps users track their daily water intake. The app should include reminders, progress tracking, and health insights."`
+* **Output:** Generates a structured Project Proposal document complete with mock market analytics, app features table, technical requirements, and financial forecasts.
 
-### What I Implemented
+### 🔹 Test Case 2: Complex / Vague Request
+* **Query:** `"We had a meeting yesterday about Q3 strategy. Some people wanted to expand into Europe, others preferred focusing on the US market. Budget is tight but we also need to hire. The CEO mentioned something about AI integration but wasn't specific. Put together something useful from this."`
+* **Output:** Autonomously classified as a **Business Report**. The agent documented 4 critical assumptions made to fill in details, structured strategic comparison options, budget considerations, and generated Q3 strategic recommendations.
 
-A two-phase quality system:
-
-1. **Multi-step planning** — The agent uses the LLM to decompose any request into a structured task list (research → outline → write sections → review), then executes each step sequentially with context accumulation.
-2. **Self-reflection** — After execution, a separate LLM call evaluates the complete document against the original request, scoring it on completeness, coherence, and quality. If the score falls below 70/100, weak sections are automatically re-written (max 1 retry to prevent infinite loops).
-
-### Why I Chose It
-
-Multi-step planning combined with reflection is the most impactful improvement for an autonomous agent because:
-
-- **Planning** demonstrates the agent's ability to reason about _what_ needs to be done, not just _how_ — the core of autonomy.
-- **Reflection** adds a crucial feedback loop. Without it, the agent is a one-shot generator. With it, the agent can self-correct, which is essential for handling complex or ambiguous requests.
-- Together, they cover two of the listed improvements (multi-step planning + reflection/self-check) while being tightly integrated.
-
-### How It Improves the Agent
-
-1. **Better handling of ambiguity** — The planner explicitly identifies assumptions and documents them in the response.
-2. **Higher quality output** — The reflection phase catches missing content, inconsistent tone, and logical gaps.
-3. **Transparency** — The full task plan and reflection results are returned to the user, making the agent's reasoning visible.
-4. **Robustness** — Error handling at every step means a single failure doesn't crash the entire pipeline.
-
-## API Reference
-
-### `POST /agent`
-
-**Request:**
-
-```json
-{
-  "request": "Create a project proposal for a mobile water tracking app"
-}
-```
-
-**Response:**
-
-```json
-{
-  "request_id": "a1b2c3d4e5f6",
-  "original_request": "...",
-  "document_type": "Project Proposal",
-  "assumptions": ["Assumed target platform is iOS and Android", "..."],
-  "task_plan": [
-    {
-      "step_number": 1,
-      "action": "research",
-      "description": "...",
-      "status": "completed"
-    },
-    {
-      "step_number": 2,
-      "action": "outline",
-      "description": "...",
-      "status": "completed"
-    }
-  ],
-  "reflection": {
-    "passed": true,
-    "score": 85,
-    "issues": [],
-    "improvements_made": []
-  },
-  "filename": "Water_Tracking_App_Proposal_20250704.docx",
-  "download_url": "/download/Water_Tracking_App_Proposal_20250704.docx",
-  "message": "Document generated successfully with 6 sections."
-}
-```
-
-### `GET /download/{filename}`
-
-Downloads the generated `.docx` file.
-
-### `GET /health`
-
-Returns `{"status": "healthy"}`.
-
-## Test Inputs
-
-### Test 1 — Standard Business Request
-
-> "Create a project proposal for a mobile app that helps users track their daily water intake. The app should include reminders, progress tracking, and health insights."
-
-Expected: A well-structured project proposal with clear sections.
-
-### Test 2 — Complex / Ambiguous Request
-
-> "We had a meeting yesterday about Q3 strategy. Some people wanted to expand into Europe, others preferred focusing on the US market. Budget is tight but we also need to hire. The CEO mentioned something about AI integration but wasn't specific. Put together something useful from this."
-
-Expected: The agent should identify this as meeting minutes or a strategy memo, make assumptions about the missing context, and produce a coherent document that addresses the conflicting viewpoints.
+---
 
 ## 📄 Sample Outputs
 
@@ -165,10 +136,19 @@ The repository tracks generated documents from our two standard evaluation runs 
 * **Test Case 1 (Standard):** [Project Proposal Document](outputs/Project_Proposal_Mobile_App_for_Daily_Water_Intake_20260704_135246.docx)
 * **Test Case 2 (Complex/Ambiguous):** [Q3 Strategic Report Document](outputs/Q3_Strategy_Business_Report_20260704_135620.docx)
 
-## Design Decisions
+---
 
-1. **No LangChain/CrewAI** — Built a custom agent loop to demonstrate understanding of agent architecture rather than relying on framework abstractions.
-2. **Groq (Llama 3.3 70B)** — Free tier, extremely fast inference, high quality reasoning, and the assignment allows it.
-3. **Async-first** — All LLM calls use async `httpx` to keep the FastAPI event loop responsive.
-4. **Graceful degradation** — If any single step fails, the executor continues with remaining steps rather than aborting.
-5. **Structured responses** — The full task plan, assumptions, and reflection are returned so the consumer can see _how_ the agent reasoned, not just the final output.
+## 🎨 Professional Document Designs
+Our generated `.docx` files are not just plain text. The `word_generator.py` compiler formats them professionally:
+* **Custom Color Palette:** Uses deep Navy (`#1A3C6E`) for primary headers, Slate Blue (`#3A7CBD`) for subheadings, and dark gray for text.
+* **Cover Page:** Creates clean Title pages with sub-labels, dividers, and generation timestamps.
+* **Layouts & Elements:** Properly compiles markdown-style bullet points, numbering systems, and injects clean bordered tables for data-dense sections.
+* **Footers:** Dynamic page numbering fields built natively into the document footer using OpenXML fields.
+
+---
+
+## 💡 Key Design Decisions & Tradeoffs
+
+1. **Custom Agent Orchestration (vs. LangChain/CrewAI):** Built without heavy multi-agent frameworks. This keeps latency low, dependency footprints minimal, and allows granular control over the execution context and retry loops.
+2. **Robust Rate-Limit Recovery:** Configured the LLM client to parse Groq's `retry-after` header during API rate-limits (`429`), sleeping dynamically rather than raising immediate exceptions.
+3. **Structured API Outputs:** Every task step, status, assumption, and reflection metric is exposed in the JSON response, ensuring total visibility into the agent's decision-making process.
