@@ -13,11 +13,9 @@ __pycache__/
 *.pyd
 .pytest_cache/
 
-# Generated Output Documents
-outputs/
-
 # Local Project Artifacts / Workspace planning files
 Copy of Python AI Engineer – Autonomous Agents – Assignment.md
+Assignement_details.md
 implementation_plan.md
 video_script.md
 task.md
