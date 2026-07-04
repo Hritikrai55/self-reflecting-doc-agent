@@ -1,0 +1,24 @@
+# Private API Keys
+.env
+
+# Virtual Environment
+venv/
+.venv/
+env/
+
+# Python Cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+
+# Generated Output Documents
+outputs/
+
+# Local Project Artifacts / Workspace planning files
+Copy of Python AI Engineer – Autonomous Agents – Assignment.md
+implementation_plan.md
+video_script.md
+task.md
+walkthrough.md
